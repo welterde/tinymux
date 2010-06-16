@@ -3,7 +3,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.62)
 AC_INIT([Tinymux-UTF 2.10],[tinymux@googlegroups.com])
 AC_CONFIG_SRCDIR([ConvertUTF.cpp])
-AC_CONFIG_HEADERS([autoconfig.h])
+AC_CONFIG_HEADERS([autoconf.h])
 
 # Checks for programs.
 AC_PROG_CXX
@@ -14,6 +14,7 @@ AC_PROG_LN_S
 
 # Checks for header files.
 AC_CHECK_HEADERS([memory.h stdlib.h string.h])
+AC_CHECK_HEADERS([iconf.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
