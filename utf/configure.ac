@@ -11,10 +11,11 @@ AC_PROG_CC
 AC_PROG_LN_S
 
 # Checks for libraries.
+AC_SEARCH_LIBS([iconv],[iconv])
 
 # Checks for header files.
 AC_CHECK_HEADERS([memory.h stdlib.h string.h])
-AC_CHECK_HEADERS([iconf.h])
+AC_CHECK_HEADERS([iconv.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
