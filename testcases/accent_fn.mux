@@ -15,6 +15,9 @@
 #
 # Test Case #1 - Help file examples below ordinal U+00FF.
 #
+# PennMUSH passes this testcase.
+# TinyMUSH doesn't support accent().
+#
 &tr.tc001 test_accent_fn=
   @if strmatch(
         setr(0,sha1(
@@ -94,6 +97,9 @@
 -
 #
 # Test Case #2 - Help file examples above ordinal U+00FF.
+#
+# PennMUSH does not support ordinals above U+00FF.
+# TinyMUSH doesn't support accent().
 #
 &tr.tc002 test_accent_fn=
   @if cand(t(chr(256)),neq(ord(accent(A,-)),ord(A)))=
