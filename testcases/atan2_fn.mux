@@ -15,6 +15,9 @@
 #
 # Test Case #1 - Help file examples.
 #
+# PennMUSH would pass this testcase if it evaluated round(0,6) -> 0.000000
+# TinyMUSH evalutes round(0,6) -> 0.000000, but does not support atan2().
+#
 &tr.tc001 test_atan2_fn=
   @if strmatch([atan2()],*NOT FOUND)=
   {
