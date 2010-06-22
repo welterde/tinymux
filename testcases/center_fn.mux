@@ -5,6 +5,11 @@
 # Strategy: Vary three argument with color and UTF-8 in combination with
 # expected center() behaviors.
 #
+# PennMUSH uses ansi() instead of color substitutions.  TinyMUSH strips color
+# from the fill pattern.  Neither PennMUSH nor TinyMUSH syncronize the left
+# and right fill patterns.  PennMUSH and TinyMUX round the position of
+# centered text down.  TinyMUSH rounds up.
+#
 @create test_center_fn
 -
 @set test_center_fn=INHERIT QUIET
