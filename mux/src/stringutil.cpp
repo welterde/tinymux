@@ -2627,7 +2627,7 @@ typedef struct
     bool       fBeginEnd;
     HTMLtag    kTag;
     ColorState cs;
-    size_t     iStart;
+    int        iStart;
 } tag_node;
 
 UTF8 *convert_to_html(const UTF8 *pString)
@@ -2636,15 +2636,15 @@ UTF8 *convert_to_html(const UTF8 *pString)
     // determines an optimal nesting order of tags. The second pass generates
     // the HTML.
     //
-    tag_node List[LBUF_SIZE];
+    tag_node List[(LBUF_SIZE-1)/3];
     int      nList = 0;
     int      Stack[10];
     int      nStack = 0;
 
     HTMLtag tagmap[5] = { kIntense, kUnderline, kBlink, kInverse, kColor };
 
-    size_t iCopy;
-    size_t i = 0;
+    int iCopy;
+    int i = 0;
     ColorState csPrev = CS_NORMAL;
     ColorState csNext = CS_NORMAL;
     unsigned int iCode = COLOR_NOTCOLOR;
@@ -2657,7 +2657,7 @@ UTF8 *convert_to_html(const UTF8 *pString)
             List[nList].fBeginEnd = true;
             List[nList].kTag = kNormal;
             List[nList].cs = CS_NORMAL;
-            List[nList].iStart = i;
+            List[nList].iStart = -1;
             nList++;
         }
     }
@@ -2671,7 +2671,7 @@ UTF8 *convert_to_html(const UTF8 *pString)
             iCode = mux_color(pString + i);
         }
 
-        if (csNext != csPrev)
+        while (csNext != csPrev)
         {
             for (unsigned int iAttr = COLOR_INDEX_ATTR; iAttr < COLOR_INDEX_FG + 1; iAttr++)
             {
@@ -2744,34 +2744,19 @@ UTF8 *convert_to_html(const UTF8 *pString)
                     {
                         if (List[Stack[j]].kTag == kNext)
                         {
-                            if (List[Stack[j]].iStart == List[Stack[nStack-1]].iStart)
+                            if (List[Stack[j]].iStart != List[Stack[nStack-1]].iStart)
                             {
-                                if (j != nStack - 1)
-                                {
-                                    // Change the order of tags which open at the
-                                    // same position so that the one we want to
-                                    // close can be popped.
-                                    //
-                                    tag_node t = List[Stack[j]];
-                                    List[Stack[j]] = List[Stack[nStack-1]];
-                                    List[Stack[nStack-1]] = t;
-                                    j = nStack - 1;
-                                }
-
-                                List[nList] = List[Stack[j]];
-                                List[nList].fBeginEnd = false;
-                                List[nList].iStart = iCopy;
-                                nList++;
-                            }
-                            else
-                            {
-                                for (int k = nStack - 1; j <= k; k--)
+                                // Pop other tags and mark in csPrev that they are gone.  We'll add them back in the next
+                                // iteration of the loop.  We stop at the point where tags can be swapped with the one
+                                // we're interested in.
+                                //
+                                for (int k = nStack - 1; j < k  && List[Stack[j]].iStart != List[Stack[nStack-1]].iStart; k--)
                                 {
                                     List[nList] = List[Stack[k]];
                                     List[nList].fBeginEnd = false;
-                                    List[nList].iStart = iCopy;
+                                    List[nList].iStart = -1;
 
-                                    switch(List[nList].kTag)
+                                    switch (List[nList].kTag)
                                     {
                                     case kIntense:
                                         csPrev &= ~CS_INTENSE;
@@ -2794,15 +2779,56 @@ UTF8 *convert_to_html(const UTF8 *pString)
                                         break;
                                     }
                                     nList++;
+                                    nStack--;
                                 }
                             }
+
+                            if (j != nStack - 1)
+                            {
+                                // Change the order of tags which open at the
+                                // same position so that the one we want to
+                                // close can be popped.
+                                //
+                                tag_node t = List[Stack[j]];
+                                List[Stack[j]] = List[Stack[nStack-1]];
+                                List[Stack[nStack-1]] = t;
+                                j = nStack - 1;
+                            }
+
+                            List[nList] = List[Stack[j]];
+                            List[nList].fBeginEnd = false;
+                            List[nList].iStart = -1;
+                            switch (List[nList].kTag)
+                            {
+                            case kIntense:
+                                csPrev &= ~CS_INTENSE;
+                                break;
+                            
+                            case kUnderline:
+                                csPrev &= ~CS_UNDERLINE;
+                                break;
+                            
+                            case kBlink:
+                                csPrev &= ~CS_BLINK;
+                                break;
+                            
+                            case kInverse:
+                                csPrev &= ~CS_INVERSE;
+                                break;
+                            
+                            case kColor:
+                                csPrev = (csPrev & ~(CS_FOREGROUND|CS_BACKGROUND)) | CS_NORMAL;
+                                break;
+                            }
+                            nList++;
+
                             nStack--;
                             if (0 == nStack)
                             {
                                 List[nList].fBeginEnd = true;
                                 List[nList].kTag = kNormal;
                                 List[nList].cs = CS_NORMAL;
-                                List[nList].iStart = iCopy;
+                                List[nList].iStart = -1;
                                 nList++;
                             }
                             break;
@@ -2815,12 +2841,38 @@ UTF8 *convert_to_html(const UTF8 *pString)
                     List[nList].fBeginEnd = true;
                     List[nList].cs = csNext;
                     List[nList].kTag = kNext;
-                    List[nList].iStart = iCopy;
+                    List[nList].iStart = -1;
+                    switch (List[nList].kTag)
+                    {
+                    case kIntense:
+                        csPrev |= CS_INTENSE;
+                        break;
+                    
+                    case kUnderline:
+                        csPrev |= CS_UNDERLINE;
+                        break;
+                    
+                    case kBlink:
+                        csPrev |= CS_BLINK;
+                        break;
+                    
+                    case kInverse:
+                        csPrev |= CS_INVERSE;
+                        break;
+                    
+                    case kColor:
+                        csPrev &= ~(CS_FOREGROUND|CS_BACKGROUND);
+                        csPrev |= (CS_FOREGROUND|CS_BACKGROUND) & csNext;;
+                        break;
+                    }
                     Stack[nStack++] = nList++;
                 }
             }
+        }
 
-            csPrev = csNext;
+        if (0 < nList)
+        {
+            List[nList-1].iStart = iCopy;
         }
 
         while (  '\0' != pString[i]
@@ -2848,7 +2900,7 @@ UTF8 *convert_to_html(const UTF8 *pString)
             switch (List[iList].kTag)
             {
             case kIntense:
-                *pBuffer++ = 'H';
+                *pBuffer++ = 'B';
                 break;
 
             case kUnderline:
@@ -2856,11 +2908,11 @@ UTF8 *convert_to_html(const UTF8 *pString)
                 break;
 
             case kBlink:
-                *pBuffer++ = 'B';
+                *pBuffer++ = 'I';
                 break;
 
             case kInverse:
-                *pBuffer++ = 'I';
+                *pBuffer++ = 'S';
                 break;
 
             case kColor:
@@ -2912,22 +2964,25 @@ UTF8 *convert_to_html(const UTF8 *pString)
         }
 
         iCopy = i = List[iList].iStart;
-        if ('\0' != pString[i])
+        if (0 <= iCopy)
         {
-            iCode = mux_color(pString + i);
-        }
-        while (  '\0' != pString[i]
-              && COLOR_NOTCOLOR == iCode)
-        {
-            i += utf8_FirstByte[pString[i]];
-            iCode = mux_color(pString + i);
-        }
-        size_t n = i - iCopy;
+            if ('\0' != pString[i])
+            {
+                iCode = mux_color(pString + i);
+            }
+            while (  '\0' != pString[i]
+                  && COLOR_NOTCOLOR == iCode)
+            {
+                i += utf8_FirstByte[pString[i]];
+                iCode = mux_color(pString + i);
+            }
+            size_t n = i - iCopy;
 
-        if (0 < n)
-        {
-            memcpy(pBuffer, pString + List[iList].iStart, n);
-            pBuffer += n;
+            if (0 < n)
+            {
+                memcpy(pBuffer, pString + List[iList].iStart, n);
+                pBuffer += n;
+            }
         }
     }
 
